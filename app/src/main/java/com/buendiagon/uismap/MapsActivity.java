@@ -121,7 +121,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 for(RetroNode node : response.body()){
                     mMap.addMarker(new MarkerOptions().title(node.getNodeInfo()).position(new LatLng(node.getLat(), node.getLng())));
                 }
-                Log.e(TAG, response.body().get(0).getNodeInfo().toString());
             }
 
             @Override
