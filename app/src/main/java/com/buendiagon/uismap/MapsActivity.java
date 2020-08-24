@@ -7,12 +7,15 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
+import android.location.Location;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
+import android.widget.Toast;
 
+import com.buendiagon.uismap.entities.RetroEdge;
 import com.buendiagon.uismap.entities.RetroNode;
 import com.buendiagon.uismap.retrofit.GetDataService;
 import com.buendiagon.uismap.retrofit.RetrofitClientInstance;
@@ -37,6 +40,7 @@ import com.google.android.material.dialog.MaterialDialogs;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.io.Console;
+import java.util.ArrayList;
 import java.util.List;
 
 import retrofit2.Call;
@@ -52,6 +56,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private MaterialButton btnDelete;
 
     private Marker currentMarker = null;
+    private List<Marker> markers;
+    private List<Polyline> polylines;
 
 
     @Override
@@ -63,6 +69,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
+        markers = new ArrayList<>();
+        polylines = new ArrayList<>();
         btnDelete = findViewById(R.id.btn_delete);
         btnDelete.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -71,7 +79,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     currentMarker.remove();
                     currentMarker = null;
                 } else {
-                    Log.e(TAG, "No hay marcadores seleccionados");
+                    Toast.makeText(MapsActivity.this, "No hay markadores seleccionados", Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -98,8 +106,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 //        end_dropdown.setAdapter(adapter);
 //    }
 
-    private void insertNode(RetroNode node, Callback<RetroNode> callback){
+    private void insertNode(RetroNode node, Callback<RetroNode> callback) {
         Call<RetroNode> call = service.insertNode(node.getNodeInfo(), node.getLat(), node.getLng());
+        call.enqueue(callback);
+    }
+
+    private void insertEdge(RetroEdge edge, Callback<RetroEdge> callback) {
+        Call<RetroEdge> call = service.insertEdge(edge.getFromNode(), edge.getToNode(), edge.getWeight());
         call.enqueue(callback);
     }
 
@@ -118,19 +131,56 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         call.enqueue(new Callback<List<RetroNode>>() {
             @Override
             public void onResponse(Call<List<RetroNode>> call, Response<List<RetroNode>> response) {
-                for(RetroNode node : response.body()){
-                    mMap.addMarker(new MarkerOptions().title(node.getNodeInfo()).position(new LatLng(node.getLat(), node.getLng())));
+                if (response.body() == null) return;
+                for (RetroNode node : response.body()) {
+                    MarkerOptions markerOptions = new MarkerOptions().title(node.getNodeInfo()).position(new LatLng(node.getLat(), node.getLng()));
+                    Marker marker = mMap.addMarker(markerOptions);
+                    marker.setTag(node.getIdNode());
+                    marker.setVisible(false);
+                    markers.add(marker);
                 }
+                loadEdges();
             }
 
             @Override
             public void onFailure(Call<List<RetroNode>> call, Throwable t) {
-                Log.e(TAG, t.toString());
+                Toast.makeText(MapsActivity.this, t.toString(), Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-    private void setupMap(){
+    private void loadEdges() {
+        Call<List<RetroEdge>> call = service.getEdges();
+        call.enqueue(new Callback<List<RetroEdge>>() {
+            @Override
+            public void onResponse(Call<List<RetroEdge>> call, Response<List<RetroEdge>> response) {
+                if (response.body() == null) return;
+                for (RetroEdge edge : response.body()) {
+                    LatLng fromNode = null;
+                    LatLng toNode = null;
+                    for (Marker marker : markers) {
+                        if (marker.getTag() == edge.getFromNode()) {
+                            fromNode = marker.getPosition();
+                        } else if (marker.getTag() == edge.getToNode()) {
+                            toNode = marker.getPosition();
+                        }
+                        if (fromNode != null && toNode != null) break;
+                    }
+                    if (fromNode == null && toNode == null) return;
+                    Polyline polyline = mMap.addPolyline(new PolylineOptions().clickable(false).add(toNode, fromNode));
+                    polyline.setTag(edge.getIdEdge());
+                    polylines.add(polyline);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<RetroEdge>> call, Throwable t) {
+                Toast.makeText(MapsActivity.this, t.toString(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void setupMap() {
         mMap.getUiSettings().setRotateGesturesEnabled(false);
         mMap.getUiSettings().setMapToolbarEnabled(false);
         try {
@@ -160,25 +210,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         MaterialAlertDialogBuilder dialogBuilder = new MaterialAlertDialogBuilder(MapsActivity.this);
         final View view = View.inflate(MapsActivity.this, R.layout.custom_dialog, null);
         final LatLng position = latLng;
-        dialogBuilder.setTitle("Node insert").setView(view).setPositiveButton("Insert", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                TextInputEditText nodeName = view.findViewById(R.id.node_name);
-                RetroNode node = new RetroNode(null, nodeName.getText().toString(), position.latitude, position.longitude);
-                insertNode(node, new Callback<RetroNode>() {
-                    @Override
-                    public void onResponse(Call<RetroNode> call, Response<RetroNode> response) {
-                        currentMarker = null;
-                        Log.e(TAG, response.body().getNodeInfo());
-                        mMap.addMarker(new MarkerOptions().position(position).title(nodeName.getText().toString()).draggable(true));
-                    }
+        dialogBuilder.setTitle("Node insert").setView(view).setPositiveButton("Insert", (dialog, which) -> {
+            TextInputEditText nodeName = view.findViewById(R.id.node_name);
+            RetroNode node = new RetroNode(null, nodeName.getText().toString(), position.latitude, position.longitude);
+            insertNode(node, new Callback<RetroNode>() {
+                @Override
+                public void onResponse(Call<RetroNode> call, Response<RetroNode> response) {
+                    currentMarker = null;
+                    if (response.body() == null) return;
+                    MarkerOptions markerOptions = new MarkerOptions().position(position).title(nodeName.getText().toString());
+                    Marker marker = mMap.addMarker(markerOptions);
+                    marker.setTag(response.body().getIdNode());
+                    markers.add(marker);
+                }
 
-                    @Override
-                    public void onFailure(Call<RetroNode> call, Throwable t) {
-                        Log.e(TAG, "Fallo la insercion: "+ t.toString());
-                    }
-                });
-            }
+                @Override
+                public void onFailure(Call<RetroNode> call, Throwable t) {
+                    Toast.makeText(MapsActivity.this, "Fallo la insercion: " + t.toString(), Toast.LENGTH_SHORT).show();
+                }
+            });
         }).setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
@@ -191,12 +241,33 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public boolean onMarkerClick(Marker marker) {
         if (currentMarker == marker) {
             currentMarker = null;
-        } else if(currentMarker == null) {
+        } else if (currentMarker == null) {
             currentMarker = marker;
-        }else{
-            Polyline polyline = mMap.addPolyline(new PolylineOptions().clickable(false).add(currentMarker.getPosition(),marker.getPosition()));
-            currentMarker = null;
+        } else {
+            RetroEdge edge = new RetroEdge(null, (Integer) currentMarker.getTag(), (Integer) marker.getTag(), calculateDistance(currentMarker, marker));
+            insertEdge(edge, new Callback<RetroEdge>() {
+                @Override
+                public void onResponse(Call<RetroEdge> call, Response<RetroEdge> response) {
+                    if (response.body() == null) return;
+                    Polyline polyline = mMap.addPolyline(new PolylineOptions().clickable(false).add(currentMarker.getPosition(), marker.getPosition()));
+                    polyline.setTag(response.body().getIdEdge());
+                    polylines.add(polyline);
+                    currentMarker = null;
+                }
+
+                @Override
+                public void onFailure(Call<RetroEdge> call, Throwable t) {
+                    Toast.makeText(MapsActivity.this, t.toString(), Toast.LENGTH_SHORT).show();
+                    currentMarker = null;
+                }
+            });
         }
         return false;
+    }
+
+    private float calculateDistance(Marker currentMarker, Marker marker) {
+        float[] results = new float[1];
+        Location.distanceBetween(currentMarker.getPosition().latitude, currentMarker.getPosition().longitude, marker.getPosition().latitude, marker.getPosition().longitude, results);
+        return results[0];
     }
 }

@@ -28,6 +28,11 @@ public interface GetDataService {
     );
 
     @POST("/insertEdge")
-    Call<RetroEdge> insertEdge();
+    @FormUrlEncoded
+    Call<RetroEdge> insertEdge(
+            @Field("from_node") Integer fromNode,
+            @Field("to_node") Integer toNode,
+            @Field("weight") Float weight
+    );
 
 }

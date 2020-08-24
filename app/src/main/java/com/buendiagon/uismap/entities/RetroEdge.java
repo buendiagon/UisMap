@@ -10,9 +10,9 @@ public class RetroEdge {
     @SerializedName("to_node")
     private Integer toNode;
     @SerializedName("weight")
-    private Double weight;
+    private Float weight;
 
-    public RetroEdge(Integer idEdge, Integer fromNode, Integer toNode, Double weight) {
+    public RetroEdge(Integer idEdge, Integer fromNode, Integer toNode, Float weight) {
         this.idEdge = idEdge;
         this.fromNode = fromNode;
         this.toNode = toNode;
@@ -43,11 +43,11 @@ public class RetroEdge {
         this.toNode = toNode;
     }
 
-    public Double getWeight() {
+    public Float getWeight() {
         return weight;
     }
 
-    public void setWeight(Double weight) {
+    public void setWeight(Float weight) {
         this.weight = weight;
     }
 }
