@@ -60,19 +60,4 @@
 <!--        </com.google.android.material.textfield.TextInputLayout>-->
 <!--    </androidx.appcompat.widget.LinearLayoutCompat>-->
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintBottom_toBottomOf="parent">
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_delete"
-            style="@style/Widget.MaterialComponents.Button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Delete select marker"/>
-
-    </LinearLayout>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

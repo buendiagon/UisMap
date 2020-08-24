@@ -53,12 +53,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private String TAG = MapsActivity.class.getSimpleName();
     private GetDataService service;
 
-    private MaterialButton btnDelete;
 
     private Marker currentMarker = null;
     private List<Marker> markers;
-    private List<Polyline> polylines;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,19 +67,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
         markers = new ArrayList<>();
-        polylines = new ArrayList<>();
-        btnDelete = findViewById(R.id.btn_delete);
-        btnDelete.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (currentMarker != null) {
-                    currentMarker.remove();
-                    currentMarker = null;
-                } else {
-                    Toast.makeText(MapsActivity.this, "No hay markadores seleccionados", Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
         service = RetrofitClientInstance.getRetrofit().create(GetDataService.class);
 //        setupAutocomplete();
     }
@@ -133,10 +117,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public void onResponse(Call<List<RetroNode>> call, Response<List<RetroNode>> response) {
                 if (response.body() == null) return;
                 for (RetroNode node : response.body()) {
-                    MarkerOptions markerOptions = new MarkerOptions().title(node.getNodeInfo()).position(new LatLng(node.getLat(), node.getLng()));
+                    MarkerOptions markerOptions = new MarkerOptions().title(node.getNodeInfo() + "(" + node.getIdNode() + ")").position(new LatLng(node.getLat(), node.getLng()));
                     Marker marker = mMap.addMarker(markerOptions);
                     marker.setTag(node.getIdNode());
-                    marker.setVisible(false);
+//                    marker.setVisible(false);
                     markers.add(marker);
                 }
                 loadEdges();
@@ -166,10 +150,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         }
                         if (fromNode != null && toNode != null) break;
                     }
-                    if (fromNode == null && toNode == null) return;
+                    if (fromNode == null || toNode == null) return;
                     Polyline polyline = mMap.addPolyline(new PolylineOptions().clickable(false).add(toNode, fromNode));
                     polyline.setTag(edge.getIdEdge());
-                    polylines.add(polyline);
                 }
             }
 
@@ -218,7 +201,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 public void onResponse(Call<RetroNode> call, Response<RetroNode> response) {
                     currentMarker = null;
                     if (response.body() == null) return;
-                    MarkerOptions markerOptions = new MarkerOptions().position(position).title(nodeName.getText().toString());
+                    MarkerOptions markerOptions = new MarkerOptions().position(position).title(nodeName.getText().toString() + "(" + response.body().getIdNode() + ")");
                     Marker marker = mMap.addMarker(markerOptions);
                     marker.setTag(response.body().getIdNode());
                     markers.add(marker);
@@ -240,6 +223,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public boolean onMarkerClick(Marker marker) {
         if (currentMarker == marker) {
+            marker.hideInfoWindow();
             currentMarker = null;
         } else if (currentMarker == null) {
             currentMarker = marker;
@@ -251,7 +235,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     if (response.body() == null) return;
                     Polyline polyline = mMap.addPolyline(new PolylineOptions().clickable(false).add(currentMarker.getPosition(), marker.getPosition()));
                     polyline.setTag(response.body().getIdEdge());
-                    polylines.add(polyline);
                     currentMarker = null;
                 }
 
