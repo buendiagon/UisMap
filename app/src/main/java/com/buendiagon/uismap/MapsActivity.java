@@ -38,6 +38,8 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.dialog.MaterialDialogs;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import java.io.Console;
 import java.util.ArrayList;
@@ -139,6 +141,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void onResponse(Call<List<RetroEdge>> call, Response<List<RetroEdge>> response) {
                 if (response.body() == null) return;
+                Gson gson = new Gson();
+                String element = gson.toJson(response.body(), new TypeToken<ArrayList<RetroEdge>>() {}.getType());
+                Log.e(TAG, element);
                 for (RetroEdge edge : response.body()) {
                     LatLng fromNode = null;
                     LatLng toNode = null;
@@ -148,11 +153,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         } else if (marker.getTag() == edge.getToNode()) {
                             toNode = marker.getPosition();
                         }
-                        if (fromNode != null && toNode != null) break;
+                        if (fromNode != null && toNode != null) {
+                            Polyline polyline = mMap.addPolyline(new PolylineOptions().clickable(false).add(toNode, fromNode));
+                            polyline.setTag(edge.getIdEdge());
+                            break;
+                        }
                     }
-                    if (fromNode == null || toNode == null) return;
-                    Polyline polyline = mMap.addPolyline(new PolylineOptions().clickable(false).add(toNode, fromNode));
-                    polyline.setTag(edge.getIdEdge());
                 }
             }
 
