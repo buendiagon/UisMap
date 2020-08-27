@@ -1,14 +1,10 @@
 package com.buendiagon.uismap;
 
-import androidx.fragment.app.FragmentActivity;
-
-import android.content.Context;
 import android.content.res.Resources;
-import android.database.Cursor;
-import android.database.SQLException;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.util.Log;
+
+import androidx.fragment.app.FragmentActivity;
 
 import com.buendiagon.uismap.data_base.UisMapSqliteHelper;
 import com.buendiagon.uismap.entities.Edge;
@@ -19,15 +15,12 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.GroundOverlay;
 import com.google.android.gms.maps.model.GroundOverlayOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MapStyleOptions;
-import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.PolylineOptions;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -115,7 +108,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.setMinZoomPreference(16.5f);
 
         BitmapDescriptor uis_map = BitmapDescriptorFactory.fromResource(R.drawable.uis_map);
-        GroundOverlay groundOverlay = mMap.addGroundOverlay(new GroundOverlayOptions().image(uis_map).positionFromBounds(uisArea).transparency(0.1f));
+        mMap.addGroundOverlay(new GroundOverlayOptions().image(uis_map).positionFromBounds(uisArea).transparency(0.1f));
 
         LatLng uisPosition = new LatLng(7.140366, -73.120573);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(uisPosition, 17));

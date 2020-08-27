@@ -33,7 +33,7 @@ public class UisMapSqliteHelper extends SQLiteOpenHelper {
         DB_PATH = this.context.getDatabasePath(DB_NAME).toString();
     }
 
-    public void createDataBase() throws IOException {
+    public void createDataBase() {
         boolean dbExist = checkDataBase();
         if (!dbExist) {
             this.getReadableDatabase();
