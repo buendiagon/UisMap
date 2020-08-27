@@ -3,12 +3,14 @@ package com.buendiagon.uismap;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.fragment.app.FragmentActivity;
 
+import com.buendiagon.uismap.clases.AstartAlgorithm;
+import com.buendiagon.uismap.clases.Graph;
+import com.buendiagon.uismap.clases.Node;
 import com.buendiagon.uismap.data_base.UisMapSqliteHelper;
-import com.buendiagon.uismap.entities.Edge;
-import com.buendiagon.uismap.entities.Node;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -28,10 +30,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private GoogleMap mMap;
     private String TAG = MapsActivity.class.getSimpleName();
+    private static boolean flag = false;
 
-    private List<Node> nodes;
-    private List<Edge> edges;
     private UisMapSqliteHelper db;
+    private List<Node> nodes;
+    private Node finalNode;
 
 
     @Override
@@ -44,6 +47,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
         db = new UisMapSqliteHelper(this);
+        nodes = new ArrayList<>();
         setupDB();
 //        setupAutocomplete();
     }
@@ -56,10 +60,31 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } catch (Exception e) {
             e.printStackTrace();
         }
-        nodes = new ArrayList<>();
-        edges = new ArrayList<>();
-        nodes = db.getNodes(this);
-        edges = db.getEdges(this);
+        Graph graph = db.getGraph(this);
+        nodes = graph.getNodes();
+
+        Node endNode = AstartAlgorithm.calculateShortestPath(nodes.get(0), nodes.get(200));
+        if(endNode == null) {
+            Toast.makeText(this, "No hay camino", Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "No hay camino");
+        }else{
+            Log.e(TAG, "si hay camino");
+            loadPath(endNode);
+        }
+
+    }
+
+    private void loadPath(Node endNode) {
+        if(!flag) {
+            flag = true;
+            finalNode = endNode;
+            return;
+        }
+        while (endNode.getPreviousNode() != null){
+            Log.e(TAG, endNode.getId() + "-" + endNode.getPreviousNode().getId());
+            mMap.addPolyline(new PolylineOptions().clickable(false).add(new LatLng(endNode.getLat(), endNode.getLng()), new LatLng(endNode.getPreviousNode().getLat(), endNode.getPreviousNode().getLng())));
+            endNode = endNode.getPreviousNode();
+        }
     }
 
 
@@ -86,6 +111,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(final GoogleMap googleMap) {
         mMap = googleMap;
         setupMap();
+        loadPath(finalNode);
     }
 
 
@@ -113,25 +139,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         LatLng uisPosition = new LatLng(7.140366, -73.120573);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(uisPosition, 17));
 
-        loadEdges();
+
 
     }
 
-    private void loadEdges() {
-        for (Edge edge : edges) {
-            LatLng fromNode = null;
-            LatLng toNode = null;
-            for (Node node : nodes) {
-                if (edge.getFrom_node() == node.getId_node()) {
-                    fromNode = new LatLng(node.getLat(), node.getLng());
-                } else if (edge.getTo_node() == node.getId_node()) {
-                    toNode = new LatLng(node.getLat(), node.getLng());
-                }
-                if(fromNode != null && toNode != null) {
-                    break;
-                }
-            }
-            mMap.addPolyline(new PolylineOptions().clickable(false).add(fromNode, toNode));
-        }
-    }
 }

@@ -8,15 +8,14 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
-import com.buendiagon.uismap.entities.Edge;
-import com.buendiagon.uismap.entities.Node;
+import com.buendiagon.uismap.clases.Graph;
+import com.buendiagon.uismap.clases.Node;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
 
 public class UisMapSqliteHelper extends SQLiteOpenHelper {
     private static String DB_PATH = "";
@@ -98,40 +97,50 @@ public class UisMapSqliteHelper extends SQLiteOpenHelper {
 
     }
 
-    public List<Node> getNodes(Activity activity) {
+    public HashMap<Integer, Node> getNodes(Activity activity) {
         SQLiteOpenHelper sqLiteOpenHelper = new UisMapSqliteHelper(activity);
         SQLiteDatabase db = sqLiteOpenHelper.getReadableDatabase();
 
-        List<Node> list = new ArrayList<>();
+        HashMap<Integer, Node> list = new HashMap<>();
 
         String query = "SELECT * FROM " + TB_NODES;
-        Log.e("message", db.getPath());
         Cursor cursor = db.rawQuery(query, null);
         if(cursor.moveToFirst()){
             do {
                 Node node = new Node(cursor.getInt(0), cursor.getString(1), cursor.getFloat(2), cursor.getFloat(3));
-                list.add(node);
+                list.put(node.getId(), node);
             }while (cursor.moveToNext());
         }
         cursor.close();
         return list;
     }
-    public List<Edge> getEdges(Activity activity) {
+    public Graph getGraph(Activity activity) {
         SQLiteOpenHelper sqLiteOpenHelper = new UisMapSqliteHelper(activity);
         SQLiteDatabase db = sqLiteOpenHelper.getReadableDatabase();
-
-        List<Edge> list = new ArrayList<>();
+        HashMap<Integer, Node> nodes = this.getNodes(activity);
+        Graph graph = new Graph();
 
         String query = "SELECT * FROM " + TB_EDGES;
-        Log.e("message", db.getPath());
         Cursor cursor = db.rawQuery(query, null);
         if(cursor.moveToFirst()){
             do {
-                Edge edge = new Edge(cursor.getInt(0), cursor.getInt(1), cursor.getInt(2), cursor.getFloat(3));
-                list.add(edge);
+                int fromId = cursor.getInt(1);
+                int toId = cursor.getInt(2);
+                float weight = cursor.getFloat(3);
+                Node fromNode = nodes.get(fromId);
+                Node toNode = nodes.get(toId);
+                if(nodes.containsKey(fromId) && nodes.containsKey(toId)){
+                    assert fromNode != null;
+                    fromNode.addDestination(toNode, weight);
+                    assert toNode != null;
+                    toNode.addDestination(fromNode, weight);
+                }
             }while (cursor.moveToNext());
         }
+        for(Node node : nodes.values()) {
+            graph.addNode(node);
+        }
         cursor.close();
-        return list;
+        return graph;
     }
 }
