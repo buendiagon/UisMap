@@ -2,23 +2,17 @@ package com.buendiagon.uismap;
 
 import androidx.fragment.app.FragmentActivity;
 
-import android.content.DialogInterface;
+import android.content.Context;
 import android.content.res.Resources;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.drawable.Drawable;
-import android.location.Location;
+import android.database.Cursor;
+import android.database.SQLException;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
-import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
-import android.widget.Toast;
 
-import com.buendiagon.uismap.entities.RetroEdge;
-import com.buendiagon.uismap.entities.RetroNode;
-import com.buendiagon.uismap.retrofit.GetDataService;
-import com.buendiagon.uismap.retrofit.RetrofitClientInstance;
+import com.buendiagon.uismap.data_base.UisMapSqliteHelper;
+import com.buendiagon.uismap.entities.Edge;
+import com.buendiagon.uismap.entities.Node;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -31,33 +25,21 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MapStyleOptions;
 import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
-import com.google.android.material.button.MaterialButton;
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.dialog.MaterialDialogs;
-import com.google.android.material.textfield.TextInputEditText;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
-import java.io.Console;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
-
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMapClickListener, GoogleMap.OnMarkerClickListener {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
     private String TAG = MapsActivity.class.getSimpleName();
-    private GetDataService service;
 
+    private List<Node> nodes;
+    private List<Edge> edges;
+    private UisMapSqliteHelper db;
 
-    private Marker currentMarker = null;
-    private List<Marker> markers;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,9 +50,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
-        markers = new ArrayList<>();
-        service = RetrofitClientInstance.getRetrofit().create(GetDataService.class);
+        db = new UisMapSqliteHelper(this);
+        setupDB();
 //        setupAutocomplete();
+    }
+
+    private void setupDB() {
+        db = new UisMapSqliteHelper(this);
+        try {
+            db.createDataBase();
+            db.openDataBase();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        nodes = new ArrayList<>();
+        edges = new ArrayList<>();
+        nodes = db.getNodes(this);
+        edges = db.getEdges(this);
     }
 
 
@@ -92,82 +88,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 //        end_dropdown.setAdapter(adapter);
 //    }
 
-    private void insertNode(RetroNode node, Callback<RetroNode> callback) {
-        Call<RetroNode> call = service.insertNode(node.getNodeInfo(), node.getLat(), node.getLng());
-        call.enqueue(callback);
-    }
-
-    private void insertEdge(RetroEdge edge, Callback<RetroEdge> callback) {
-        Call<RetroEdge> call = service.insertEdge(edge.getFromNode(), edge.getToNode(), edge.getWeight());
-        call.enqueue(callback);
-    }
-
 
     @Override
     public void onMapReady(final GoogleMap googleMap) {
         mMap = googleMap;
-        mMap.setOnMarkerClickListener(this);
-        mMap.setOnMapClickListener(this);
         setupMap();
-        loadMarkers();
     }
 
-    private void loadMarkers() {
-        Call<List<RetroNode>> call = service.getNodes();
-        call.enqueue(new Callback<List<RetroNode>>() {
-            @Override
-            public void onResponse(Call<List<RetroNode>> call, Response<List<RetroNode>> response) {
-                if (response.body() == null) return;
-                for (RetroNode node : response.body()) {
-                    MarkerOptions markerOptions = new MarkerOptions().title(node.getNodeInfo() + "(" + node.getIdNode() + ")").position(new LatLng(node.getLat(), node.getLng()));
-                    Marker marker = mMap.addMarker(markerOptions);
-                    marker.setTag(node.getIdNode());
-//                    marker.setVisible(false);
-                    markers.add(marker);
-                }
-                loadEdges();
-            }
-
-            @Override
-            public void onFailure(Call<List<RetroNode>> call, Throwable t) {
-                Toast.makeText(MapsActivity.this, t.toString(), Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void loadEdges() {
-        Call<List<RetroEdge>> call = service.getEdges();
-        call.enqueue(new Callback<List<RetroEdge>>() {
-            @Override
-            public void onResponse(Call<List<RetroEdge>> call, Response<List<RetroEdge>> response) {
-                if (response.body() == null) return;
-                Gson gson = new Gson();
-                String element = gson.toJson(response.body(), new TypeToken<ArrayList<RetroEdge>>() {}.getType());
-                Log.e(TAG, element);
-                for (RetroEdge edge : response.body()) {
-                    LatLng fromNode = null;
-                    LatLng toNode = null;
-                    for (Marker marker : markers) {
-                        if (marker.getTag() == edge.getFromNode()) {
-                            fromNode = marker.getPosition();
-                        } else if (marker.getTag() == edge.getToNode()) {
-                            toNode = marker.getPosition();
-                        }
-                        if (fromNode != null && toNode != null) {
-                            Polyline polyline = mMap.addPolyline(new PolylineOptions().clickable(false).add(toNode, fromNode));
-                            polyline.setTag(edge.getIdEdge());
-                            break;
-                        }
-                    }
-                }
-            }
-
-            @Override
-            public void onFailure(Call<List<RetroEdge>> call, Throwable t) {
-                Toast.makeText(MapsActivity.this, t.toString(), Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
 
     private void setupMap() {
         mMap.getUiSettings().setRotateGesturesEnabled(false);
@@ -192,71 +119,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         LatLng uisPosition = new LatLng(7.140366, -73.120573);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(uisPosition, 17));
+
+        loadEdges();
+
     }
 
-    @Override
-    public void onMapClick(LatLng latLng) {
-        MaterialAlertDialogBuilder dialogBuilder = new MaterialAlertDialogBuilder(MapsActivity.this);
-        final View view = View.inflate(MapsActivity.this, R.layout.custom_dialog, null);
-        final LatLng position = latLng;
-        dialogBuilder.setTitle("Node insert").setView(view).setPositiveButton("Insert", (dialog, which) -> {
-            TextInputEditText nodeName = view.findViewById(R.id.node_name);
-            RetroNode node = new RetroNode(null, nodeName.getText().toString(), position.latitude, position.longitude);
-            insertNode(node, new Callback<RetroNode>() {
-                @Override
-                public void onResponse(Call<RetroNode> call, Response<RetroNode> response) {
-                    currentMarker = null;
-                    if (response.body() == null) return;
-                    MarkerOptions markerOptions = new MarkerOptions().position(position).title(nodeName.getText().toString() + "(" + response.body().getIdNode() + ")");
-                    Marker marker = mMap.addMarker(markerOptions);
-                    marker.setTag(response.body().getIdNode());
-                    markers.add(marker);
+    private void loadEdges() {
+        for (Edge edge : edges) {
+            LatLng fromNode = null;
+            LatLng toNode = null;
+            for (Node node : nodes) {
+                if (edge.getFrom_node() == node.getId_node()) {
+                    fromNode = new LatLng(node.getLat(), node.getLng());
+                } else if (edge.getTo_node() == node.getId_node()) {
+                    toNode = new LatLng(node.getLat(), node.getLng());
                 }
-
-                @Override
-                public void onFailure(Call<RetroNode> call, Throwable t) {
-                    Toast.makeText(MapsActivity.this, "Fallo la insercion: " + t.toString(), Toast.LENGTH_SHORT).show();
+                if(fromNode != null && toNode != null) {
+                    break;
                 }
-            });
-        }).setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-
             }
-        }).show();
-    }
-
-    @Override
-    public boolean onMarkerClick(Marker marker) {
-        if (currentMarker == marker) {
-            marker.hideInfoWindow();
-            currentMarker = null;
-        } else if (currentMarker == null) {
-            currentMarker = marker;
-        } else {
-            RetroEdge edge = new RetroEdge(null, (Integer) currentMarker.getTag(), (Integer) marker.getTag(), calculateDistance(currentMarker, marker));
-            insertEdge(edge, new Callback<RetroEdge>() {
-                @Override
-                public void onResponse(Call<RetroEdge> call, Response<RetroEdge> response) {
-                    if (response.body() == null) return;
-                    Polyline polyline = mMap.addPolyline(new PolylineOptions().clickable(false).add(currentMarker.getPosition(), marker.getPosition()));
-                    polyline.setTag(response.body().getIdEdge());
-                    currentMarker = null;
-                }
-
-                @Override
-                public void onFailure(Call<RetroEdge> call, Throwable t) {
-                    Toast.makeText(MapsActivity.this, t.toString(), Toast.LENGTH_SHORT).show();
-                    currentMarker = null;
-                }
-            });
+            mMap.addPolyline(new PolylineOptions().clickable(false).add(fromNode, toNode));
         }
-        return false;
-    }
-
-    private float calculateDistance(Marker currentMarker, Marker marker) {
-        float[] results = new float[1];
-        Location.distanceBetween(currentMarker.getPosition().latitude, currentMarker.getPosition().longitude, marker.getPosition().latitude, marker.getPosition().longitude, results);
-        return results[0];
     }
 }
