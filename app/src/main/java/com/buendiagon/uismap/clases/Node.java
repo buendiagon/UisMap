@@ -80,9 +80,9 @@ public class Node implements Comparable<Node> {
     }
 
     public void resetNode(){
-        setVisit(false);
-        setG(Float.MAX_VALUE);
-        setF(Float.MAX_VALUE);
+        this.visit = false;
+        this.g = Float.MAX_VALUE;
+        this.f = Float.MAX_VALUE;
     }
 
     @Override

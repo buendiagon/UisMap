@@ -10,7 +10,6 @@ import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -22,6 +21,7 @@ public class AstartAlgorithm {
 
     private static final String TAG = "A start Algorithm";
     private static ArrayList<Polyline> polylineGreen = new ArrayList<>();
+    private static List<Node> exploredNodes = new ArrayList<>();
 
     public static List<Node> calculateShortestPath(GoogleMap googleMap, Node start, Node goal) {
         for (Polyline polyline : polylineGreen) {
@@ -36,20 +36,16 @@ public class AstartAlgorithm {
         openSet.add(start);
         while (!openSet.isEmpty()) {
             Node current = openSet.poll();
+            Log.e(TAG, "Done!!!");
             assert current != null;
             if (current == goal) {
                 Log.e(TAG, "Done!!!");
-                Collection<Node> iterator = cameFrom.values();
                 current.resetNode();
-                for(Node node : iterator) {
-                    node.resetNode();
-                }
-                while (!openSet.isEmpty()) {
-                    openSet.poll().resetNode();
-                }
+                resetNodes(openSet.iterator());
                 return reconstructPath(cameFrom, current);
             }
             current.setVisit(true);
+            exploredNodes.add(current);
             for (Node neighbor : current.getAdjacentNodes().keySet()) {
                 float tentative_gScore = current.getG() + current.getAdjacentNodes().get(neighbor);
                 if (tentative_gScore < neighbor.getG() && !neighbor.isVisit()) {
@@ -67,7 +63,18 @@ public class AstartAlgorithm {
                 }
             }
         }
+        resetNodes(null);
         return null;
+    }
+
+    private static void resetNodes (Iterator<Node> openNode) {
+        for(Node node : exploredNodes) {
+            node.resetNode();
+        }
+        while (openNode.hasNext()){
+            openNode.next().resetNode();
+        }
+        exploredNodes.clear();
     }
 
     private static List<Node> reconstructPath(Map<Node, Node> cameFrom, Node current) {

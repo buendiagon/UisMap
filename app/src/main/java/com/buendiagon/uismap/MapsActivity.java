@@ -88,9 +88,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         LatLng uisPosition = new LatLng(7.140366, -73.120573);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(uisPosition, 17));
 
-        for(int index : interestPoints) {
+        for (int index : interestPoints) {
             Node node = nodes.get(index);
-            if(node != null){
+            if (node != null) {
                 LatLng position = new LatLng(node.getLat(), node.getLng());
                 mMap.addMarker(new MarkerOptions().title(node.getName()).position(position)).setTag(node.getId());
             }
@@ -110,16 +110,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Polyline polyline;
 
     private void loadPath(int start, int end) {
+        Log.e(TAG, "start: " + start + "---- end: " + end);
         List<Node> totalPath = AstartAlgorithm.calculateShortestPath(mMap, nodes.get(start), nodes.get(end));
-        if(polyline != null){
+        if (polyline != null) {
             polyline.remove();
             polyline = null;
         }
-        if (totalPath == null || totalPath.isEmpty()) {
+        if (totalPath == null) {
             Toast.makeText(this, "No hay camino", Toast.LENGTH_SHORT).show();
         } else {
             List<LatLng> path = new ArrayList<>();
-            for(Node node : totalPath) {
+            for (Node node : totalPath) {
                 path.add(new LatLng(node.getLat(), node.getLng()));
             }
             polyline = mMap.addPolyline(new PolylineOptions().clickable(false).addAll(path).zIndex(10));
@@ -127,17 +128,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     Marker lastMarker = null;
+
     @Override
     public boolean onMarkerClick(Marker marker) {
-        if(lastMarker == null){
+        if (lastMarker == null) {
             lastMarker = marker;
-        }else {
-            if(lastMarker.getTag() instanceof Integer && marker.getTag() instanceof Integer){
+        } else {
+            if (lastMarker.getTag() instanceof Integer && marker.getTag() instanceof Integer) {
                 loadPath((Integer) lastMarker.getTag(), (Integer) marker.getTag());
             }
             lastMarker = null;
         }
 
-        return true;
+        return false;
     }
 }
