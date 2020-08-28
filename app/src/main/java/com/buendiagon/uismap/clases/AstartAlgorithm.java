@@ -1,59 +1,90 @@
 package com.buendiagon.uismap.clases;
 
+import android.graphics.Color;
 import android.location.Location;
 import android.util.Log;
-import android.widget.Toast;
 
+import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
 
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Queue;
 
 public class AstartAlgorithm {
 
     private static final String TAG = "A start Algorithm";
+    private static ArrayList<Polyline> polylineGreen = new ArrayList<>();
 
-    private static float calculateDistance(LatLng from, LatLng to) {
-        float[] results = new float[1];
-        Location.distanceBetween(from.latitude, from.longitude, to.latitude, to.longitude, results);
-        return results[0];
-    }
+    public static List<Node> calculateShortestPath(GoogleMap googleMap, Node start, Node goal) {
+        for (Polyline polyline : polylineGreen) {
+            polyline.remove();
+        }
+        Queue<Node> openSet = new PriorityQueue<>();
+        Map<Node, Node> cameFrom = new HashMap<>();
 
-    public static Node calculateShortestPath(Node start, Node goal) {
-        Set<Node> openSet = new HashSet<>();
-        Set<Node> closedSet = new HashSet<>();
-        openSet.add(start);
         start.setG(0);
+        start.setF(calculateDistance(start, goal));
 
+        openSet.add(start);
         while (!openSet.isEmpty()) {
-            Node current = start;
-            for (Node node : openSet) {
-                current = (current.getF() < node.getF()) ? current : node;
-            }
-
+            Node current = openSet.poll();
+            assert current != null;
             if (current == goal) {
-                Log.e(TAG, "Done!!!!");
-                return goal;
+                Log.e(TAG, "Done!!!");
+                Collection<Node> iterator = cameFrom.values();
+                current.resetNode();
+                for(Node node : iterator) {
+                    node.resetNode();
+                }
+                while (!openSet.isEmpty()) {
+                    openSet.poll().resetNode();
+                }
+                return reconstructPath(cameFrom, current);
             }
-
-            openSet.remove(current);
-            closedSet.add(current);
+            current.setVisit(true);
             for (Node neighbor : current.getAdjacentNodes().keySet()) {
-                if (!closedSet.contains(neighbor)) {
-                    float tentative_gScore = current.getG() + current.getAdjacentNodes().get(neighbor);
-                    Log.e(TAG, "tentative: " + neighbor.getId());
-
-                    if (tentative_gScore < neighbor.getG()) {
-                        neighbor.setPreviousNode(current);
-                        neighbor.setG(tentative_gScore);
-                        neighbor.setF(neighbor.getG() + calculateDistance(new LatLng(neighbor.getLat(), neighbor.getLng()), new LatLng(goal.getLat(), goal.getLng())));
+                float tentative_gScore = current.getG() + current.getAdjacentNodes().get(neighbor);
+                if (tentative_gScore < neighbor.getG() && !neighbor.isVisit()) {
+                    polylineGreen.add(googleMap
+                            .addPolyline(new PolylineOptions().clickable(true)
+                                    .color(Color.rgb(0, 255, 0))
+                                    .add(new LatLng(current.getLat(), current.getLng()), new LatLng(neighbor.getLat(), neighbor.getLng()))
+                            ));
+                    cameFrom.put(neighbor, current);
+                    neighbor.setG(tentative_gScore);
+                    neighbor.setF(neighbor.getG() + calculateDistance(neighbor, goal));
+                    if (!openSet.contains(neighbor)) {
                         openSet.add(neighbor);
                     }
                 }
             }
         }
         return null;
+    }
+
+    private static List<Node> reconstructPath(Map<Node, Node> cameFrom, Node current) {
+        List<Node> totalPath = new ArrayList<>();
+        while (cameFrom.containsKey(current)){
+            totalPath.add(current);
+            current = cameFrom.get(current);
+        }
+        return totalPath;
+    }
+
+    private static float calculateDistance(Node fromNode, Node toNode) {
+        LatLng from = new LatLng(fromNode.getLat(), fromNode.getLng());
+        LatLng to = new LatLng(toNode.getLat(), toNode.getLng());
+        float[] results = new float[1];
+        Location.distanceBetween(from.latitude, from.longitude, to.latitude, to.longitude, results);
+        return results[0];
     }
 
 }

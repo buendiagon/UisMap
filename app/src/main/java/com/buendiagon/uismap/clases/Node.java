@@ -1,18 +1,19 @@
 package com.buendiagon.uismap.clases;
 
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Node {
+public class Node implements Comparable<Node> {
     private int id;
     private String name;
     private float lat;
     private float lng;
 
     // for algorithm
-    private Node previousNode;
     private float f;
     private float g;
+    private boolean visit;
 
     private Map<Node, Float> adjacentNodes = new HashMap<>();
 
@@ -25,17 +26,13 @@ public class Node {
         this.name = name;
         this.lat = lat;
         this.lng = lng;
-        this.previousNode = null;
         this.f = Float.MAX_VALUE;
         this.g = Float.MAX_VALUE;
+        this.visit = false;
     }
 
     public int getId() {
         return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
     }
 
     public String getName() {
@@ -50,28 +47,12 @@ public class Node {
         return lat;
     }
 
-    public void setLat(float lat) {
-        this.lat = lat;
-    }
-
     public float getLng() {
         return lng;
     }
 
-    public void setLng(float lng) {
-        this.lng = lng;
-    }
-
     public Map<Node, Float> getAdjacentNodes() {
         return adjacentNodes;
-    }
-
-    public Node getPreviousNode() {
-        return previousNode;
-    }
-
-    public void setPreviousNode(Node previousNode) {
-        this.previousNode = previousNode;
     }
 
     public float getF() {
@@ -88,5 +69,24 @@ public class Node {
 
     public void setG(float g) {
         this.g = g;
+    }
+
+    public boolean isVisit() {
+        return visit;
+    }
+
+    public void setVisit(boolean visit) {
+        this.visit = visit;
+    }
+
+    public void resetNode(){
+        setVisit(false);
+        setG(Float.MAX_VALUE);
+        setF(Float.MAX_VALUE);
+    }
+
+    @Override
+    public int compareTo(Node o) {
+        return Float.compare(o.getF(), this.getF()) * (-1);
     }
 }

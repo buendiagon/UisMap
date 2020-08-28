@@ -8,7 +8,6 @@ import android.widget.Toast;
 import androidx.fragment.app.FragmentActivity;
 
 import com.buendiagon.uismap.clases.AstartAlgorithm;
-import com.buendiagon.uismap.clases.Graph;
 import com.buendiagon.uismap.clases.Node;
 import com.buendiagon.uismap.data_base.UisMapSqliteHelper;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -21,21 +20,24 @@ import com.google.android.gms.maps.model.GroundOverlayOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MapStyleOptions;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMarkerClickListener {
 
     private GoogleMap mMap;
     private String TAG = MapsActivity.class.getSimpleName();
-    private static boolean flag = false;
 
     private UisMapSqliteHelper db;
-    private List<Node> nodes;
-    private Node finalNode;
-
+    private Map<Integer, Node> nodes;
+    private List<Integer> interestPoints;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,71 +49,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
         db = new UisMapSqliteHelper(this);
-        nodes = new ArrayList<>();
+        nodes = new HashMap<>();
+        interestPoints = new ArrayList<>();
         setupDB();
-//        setupAutocomplete();
     }
-
-    private void setupDB() {
-        db = new UisMapSqliteHelper(this);
-        try {
-            db.createDataBase();
-            db.openDataBase();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        Graph graph = db.getGraph(this);
-        nodes = graph.getNodes();
-
-        Node endNode = AstartAlgorithm.calculateShortestPath(nodes.get(0), nodes.get(200));
-        if(endNode == null) {
-            Toast.makeText(this, "No hay camino", Toast.LENGTH_SHORT).show();
-            Log.e(TAG, "No hay camino");
-        }else{
-            Log.e(TAG, "si hay camino");
-            loadPath(endNode);
-        }
-
-    }
-
-    private void loadPath(Node endNode) {
-        if(!flag) {
-            flag = true;
-            finalNode = endNode;
-            return;
-        }
-        while (endNode.getPreviousNode() != null){
-            Log.e(TAG, endNode.getId() + "-" + endNode.getPreviousNode().getId());
-            mMap.addPolyline(new PolylineOptions().clickable(false).add(new LatLng(endNode.getLat(), endNode.getLng()), new LatLng(endNode.getPreviousNode().getLat(), endNode.getPreviousNode().getLng())));
-            endNode = endNode.getPreviousNode();
-        }
-    }
-
-
-//    public void setupAutocomplete(){
-//        String[] COUNTRIES = new String[] {"Item 1", "Item 2", "Item 3", "Item 4"};
-//
-//        ArrayAdapter<String> adapter =
-//                new ArrayAdapter<>(
-//                        this,
-//                        R.layout.dropdown_menu_popup_item,
-//                        COUNTRIES);
-//
-//        AutoCompleteTextView start_dropdown =
-//                findViewById(R.id.start_dropdown);
-//        start_dropdown.setAdapter(adapter);
-//
-//        AutoCompleteTextView end_dropdown =
-//                findViewById(R.id.end_dropdown);
-//        end_dropdown.setAdapter(adapter);
-//    }
-
 
     @Override
     public void onMapReady(final GoogleMap googleMap) {
         mMap = googleMap;
+        mMap.setOnMarkerClickListener(this);
+        nodes = db.getGraph(this);
+        interestPoints = db.getInterestPoints(this);
         setupMap();
-        loadPath(finalNode);
     }
 
 
@@ -139,8 +88,56 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         LatLng uisPosition = new LatLng(7.140366, -73.120573);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(uisPosition, 17));
 
-
-
+        for(int index : interestPoints) {
+            Node node = nodes.get(index);
+            if(node != null){
+                LatLng position = new LatLng(node.getLat(), node.getLng());
+                mMap.addMarker(new MarkerOptions().title(node.getName()).position(position)).setTag(node.getId());
+            }
+        }
     }
 
+    private void setupDB() {
+        db = new UisMapSqliteHelper(this);
+        try {
+            db.createDataBase();
+            db.openDataBase();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private Polyline polyline;
+
+    private void loadPath(int start, int end) {
+        List<Node> totalPath = AstartAlgorithm.calculateShortestPath(mMap, nodes.get(start), nodes.get(end));
+        if(polyline != null){
+            polyline.remove();
+            polyline = null;
+        }
+        if (totalPath == null || totalPath.isEmpty()) {
+            Toast.makeText(this, "No hay camino", Toast.LENGTH_SHORT).show();
+        } else {
+            List<LatLng> path = new ArrayList<>();
+            for(Node node : totalPath) {
+                path.add(new LatLng(node.getLat(), node.getLng()));
+            }
+            polyline = mMap.addPolyline(new PolylineOptions().clickable(false).addAll(path).zIndex(10));
+        }
+    }
+
+    Marker lastMarker = null;
+    @Override
+    public boolean onMarkerClick(Marker marker) {
+        if(lastMarker == null){
+            lastMarker = marker;
+        }else {
+            if(lastMarker.getTag() instanceof Integer && marker.getTag() instanceof Integer){
+                loadPath((Integer) lastMarker.getTag(), (Integer) marker.getTag());
+            }
+            lastMarker = null;
+        }
+
+        return true;
+    }
 }

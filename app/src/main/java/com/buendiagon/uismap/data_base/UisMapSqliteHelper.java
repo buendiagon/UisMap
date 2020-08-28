@@ -8,14 +8,16 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
-import com.buendiagon.uismap.clases.Graph;
 import com.buendiagon.uismap.clases.Node;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class UisMapSqliteHelper extends SQLiteOpenHelper {
     private static String DB_PATH = "";
@@ -97,7 +99,7 @@ public class UisMapSqliteHelper extends SQLiteOpenHelper {
 
     }
 
-    public HashMap<Integer, Node> getNodes(Activity activity) {
+    private HashMap<Integer, Node> getNodes(Activity activity) {
         SQLiteOpenHelper sqLiteOpenHelper = new UisMapSqliteHelper(activity);
         SQLiteDatabase db = sqLiteOpenHelper.getReadableDatabase();
 
@@ -114,11 +116,10 @@ public class UisMapSqliteHelper extends SQLiteOpenHelper {
         cursor.close();
         return list;
     }
-    public Graph getGraph(Activity activity) {
+    public Map<Integer, Node> getGraph(Activity activity) {
         SQLiteOpenHelper sqLiteOpenHelper = new UisMapSqliteHelper(activity);
         SQLiteDatabase db = sqLiteOpenHelper.getReadableDatabase();
         HashMap<Integer, Node> nodes = this.getNodes(activity);
-        Graph graph = new Graph();
 
         String query = "SELECT * FROM " + TB_EDGES;
         Cursor cursor = db.rawQuery(query, null);
@@ -137,10 +138,23 @@ public class UisMapSqliteHelper extends SQLiteOpenHelper {
                 }
             }while (cursor.moveToNext());
         }
-        for(Node node : nodes.values()) {
-            graph.addNode(node);
+        cursor.close();
+        return nodes;
+    }
+
+    public List<Integer> getInterestPoints(Activity activity) {
+        SQLiteOpenHelper sqLiteOpenHelper = new UisMapSqliteHelper(activity);
+        SQLiteDatabase db = sqLiteOpenHelper.getReadableDatabase();
+        List<Integer> points = new ArrayList<>();
+
+        String query = "SELECT id_node FROM " + TB_NODES + " WHERE node_info != ''";
+        Cursor cursor = db.rawQuery(query, null);
+        if(cursor.moveToFirst()) {
+            do{
+                points.add(cursor.getInt(0));
+            }while (cursor.moveToNext());
         }
         cursor.close();
-        return graph;
+        return points;
     }
 }
