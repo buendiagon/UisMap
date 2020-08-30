@@ -1,6 +1,7 @@
-package com.buendiagon.uismap.clases;
+package com.buendiagon.uismap.classes;
 
-import java.util.Comparator;
+import androidx.annotation.NonNull;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -88,5 +89,11 @@ public class Node implements Comparable<Node> {
     @Override
     public int compareTo(Node o) {
         return Float.compare(o.getF(), this.getF()) * (-1);
+    }
+
+    @NonNull
+    @Override
+    public String toString() {
+        return getName();
     }
 }

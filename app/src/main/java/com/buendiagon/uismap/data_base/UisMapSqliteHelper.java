@@ -8,7 +8,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
-import com.buendiagon.uismap.clases.Node;
+import com.buendiagon.uismap.classes.Node;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
