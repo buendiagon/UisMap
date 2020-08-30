@@ -107,7 +107,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             fusedLocationProviderClient.getLastLocation().addOnSuccessListener(location -> {
                 currentLocation = new LatLng(location.getLatitude(), location.getLongitude());
                 mMap.animateCamera(CameraUpdateFactory.newLatLng(currentLocation));
-                currentMarkerPosition.remove();
+                if (currentMarkerPosition != null)
+                    currentMarkerPosition.remove();
                 currentMarkerPosition = null;
             });
         };
@@ -215,8 +216,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         // Llama al algoritmo A* para calcular la ruta más corta entre los dos puntos dados
         totalPath = AstartAlgorithm.calculateShortestPath(mMap, startNode, endNode);
-        if(!withZoom && totalPath != null) {
-            totalPath.add(0,endNode);
+        if (!withZoom && totalPath != null) {
+            totalPath.add(0, endNode);
         }
 
         // limpia las rutas dibujadas en el mapa si las hay
@@ -277,7 +278,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             } else {
                 loadPath(Util.getNearestNode(nodes.values(), currentLocation).getId(), totalPath.get(0).getId(), false);
             }
-        } else if(isRoute){
+        } else if (isRoute) {
             isRoute = false;
             Toast.makeText(this, "Ha llegado a su destino", Toast.LENGTH_SHORT).show();
             totalPath.clear();
